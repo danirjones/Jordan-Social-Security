@@ -1,0 +1,159 @@
+---
+title: "IPSOS Latent Cluster Analysis for Immunization - Mozambique"
+author: "Dani Jones"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+## Set Pathway - Fin.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Set a CRAN mirror - Fin.
+```{r}
+options(repos = "https://cloud.r-project.org")
+```
+
+## R Markdown/Packages - Fin.
+```{r}
+install.packages("readr")
+library(readr)
+install.packages("dplyr")
+library(dplyr)
+install.packages("poLCA")
+library(poLCA)
+install.packages("ggplot2")
+library(ggplot2)
+```
+
+## Load in IPSOS Data - Fin.
+```{r}
+# Specify the file path
+file_path <- "Ipsos_Data_Numeric.csv"
+
+# Load data from CSV file
+ipsos_data <- read_csv(file_path)
+
+# View the first few rows of the data
+head(ipsos_data)
+
+# View summary statistics of the data
+summary(ipsos_data)
+
+# Check the structure of the data
+str(ipsos_data)
+```
+
+## Replace #NULL! Values with NAs - Fin.
+```{r}
+# Replace `#NULL!` with NA, but only for character columns
+ipsos_data <- ipsos_data %>%
+  mutate(across(where(is.character), ~na_if(., "#NULL!")))
+```
+
+## New Dataframes for Provinces - Fin.
+```{r}
+# Filter for Nampula province
+nampula_data <- subset(ipsos_data, A7 == 2)
+
+# Filter for Zambezia province
+zambezia_data <- subset(ipsos_data, A7 == 4)
+```
+
+## Note: For Variable Selection, Only Run One of The Following Based on Population
+## New Dataframes for Not Fully Vaccinated - Fin.
+```{r}
+# Filter for Nampula province and unvaccinated individuals
+nampula_unvaccinated <- subset(nampula_data, P11.1 == 0)
+
+# Filter for Zambezia province and unvaccinated individuals
+zambezia_unvaccinated <- subset(zambezia_data, P11.1 == 0)
+
+# New set of selected variables for your analysis
+selected_vars_new <- c("D2", "D3", "E4.1", "G1", "L4", "L1", "L2", "F2.1", "C9", "PP5", "P6.1", "F12", "F8", "F9", "F5", "F6", "F7", "F1", "C1")
+
+# For Nampula data
+nampula_data_unvac_simplified <- nampula_unvaccinated  %>%
+  mutate(across(all_of(selected_vars_new), ~factor(., exclude = NULL)))
+
+# For Zambezia data
+zambezia_data_unvac_simplified <- zambezia_unvaccinated %>%
+  mutate(across(all_of(selected_vars_new), ~factor(., exclude = NULL)))
+```
+
+
+##or
+
+
+##New Dataframes for Fully Vaccinated - Fin.
+```{r}
+# Filter for Nampula province and unvaccinated individuals
+nampula_vaccinated <- subset(nampula_data, P11.1 == 1)
+
+# Filter for Zambezia province and unvaccinated individuals
+zambezia_vaccinated <- subset(zambezia_data, P11.1 == 1)
+
+# New set of selected variables for your analysis
+selected_vars_new <- c("D2", "D3", "E4.1", "G1", "L4", "L1", "L2", "F2.1", "C9", "PP5", "P6.1", "F12", "F8", "F9", "F5", "F6", "F7", "F1", "C1")
+
+# For Nampula data
+nampula_data_vac_simplified <- nampula_vaccinated  %>%
+  mutate(across(all_of(selected_vars_new), ~factor(., exclude = NULL)))
+
+# For Zambezia data
+zambezia_data_vac_simplified <- zambezia_vaccinated %>%
+  mutate(across(all_of(selected_vars_new), ~factor(., exclude = NULL)))
+```
+
+##Note: For Variable Selection,Remember to Change "Data =" to Match Subpopulation
+##Running Both Nampula and Zambezia LCA's - Fin.
+```{r}
+# Ensure the poLCA package is loaded
+if (!require("poLCA")) install.packages("poLCA")
+library(poLCA)
+
+# Specifying the LCA model formula with the selected variables for Nampula
+lca_formula_nampula <- as.formula(paste("cbind(", paste(selected_vars_new, collapse = ", "), ") ~ 1"))
+
+# Running LCA for Nampula data
+lca_model_nampula <- poLCA(lca_formula_nampula, data = nampula_data_vac_simplified, nclass = 3, maxiter = 1000, tol = 1e-6)
+
+# Specifying the LCA model formula with the selected variables for Zambezia
+lca_formula_zambezia <- as.formula(paste("cbind(", paste(selected_vars_new, collapse = ", "), ") ~ 1"))
+
+# Running LCA for Zambezia data
+lca_model_zambezia <- poLCA(lca_formula_zambezia, data = zambezia_data_vac_simplified, nclass = 3, maxiter = 1000, tol = 1e-6)
+```
+
+##AIC and BIC Checks - Fin.
+```{r}
+# Checking AIC and BIC Values for Zambezia Model
+cat("AIC:", lca_formula_zambezia$aic, "\nBIC:", lca_formula_zambezia$bic, "\n") 
+
+# Checking AIC and BIC Values for Nampula Model
+cat("AIC:", lca_model_nampula$aic, "\nBIC:", lca_model_nampula$bic, "\n")
+```
+
+##View First Few Rows of Predicted Classes - Fin.
+```{r}
+# Viewing the first few rows of predicted class membership probabilities: Zambezia Model
+head(lca_formula_zambezia$posterior)
+
+# Viewing the first few rows of predicted class membership probabilities: Nampula Model
+head(lca_model_nampula$posterior)
+```
+
+## Interpretation and Visualization - Fin.
+```{r}
+# Display conditional item response probabilities by class: Zambezia Model
+lca_formula_zambezia$probs
+
+# Display conditional item response probabilities by class: Nampula Model
+lca_model_nampula$probs
+```
+
